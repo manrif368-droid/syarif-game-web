@@ -1,0 +1,1646 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Syarif Bros</title>
+    <!-- Font Retro Pixel -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js untuk Efek Suara Retro tanpa file eksternal -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            margin: 0;
+            padding: 12px 0;
+            background-color: #1a1a2e;
+            font-family: 'Press Start 2P', monospace;
+            overflow-x: hidden;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: white;
+        }
+
+        /* Kontainer Utama Game */
+        #game-wrapper {
+            position: relative;
+            width: 95vw;
+            max-width: 900px;
+            aspect-ratio: 16 / 9;
+            background: linear-gradient(180deg, #5c94fc 0%, #8cb4fc 100%);
+            border: 6px solid #fff;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 0 4px #e52521;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        /* HUD (Skor, Koin, Nyawa) */
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: clamp(10px, 2vw, 16px);
+            text-shadow: 2px 2px 0 #000;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Layar Overlay (Menu Mulai, Game Over, Menang) */
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            z-index: 20;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Judul Bergaya Retro */
+        .retro-title {
+            font-size: clamp(20px, 4.5vw, 42px);
+            color: #fbd000;
+            text-shadow: 4px 4px 0 #e52521, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+            margin-bottom: 20px;
+            line-height: 1.3;
+            animation: float 2s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        /* Tombol Retro */
+        .btn-retro {
+            background: linear-gradient(180deg, #43b047 0%, #2d8a31 100%);
+            border: 4px solid #fff;
+            border-radius: 12px;
+            color: white;
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(12px, 2vw, 18px);
+            padding: 15px 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #1b5e20, 0 10px 20px rgba(0,0,0,0.5);
+            transition: transform 0.1s, box-shadow 0.1s;
+            margin-top: 15px;
+        }
+
+        .btn-retro:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-retro:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #1b5e20, 0 4px 10px rgba(0,0,0,0.5);
+        }
+
+        /* Kontrol Sentuh di Bawah Canvas */
+        #controls-bar {
+            width: 95vw;
+            max-width: 900px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            padding: 0 10px;
+        }
+
+        .dpad-group, .action-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .ctrl-btn {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #3a3a52, #252538);
+            border: 3px solid #6c6c8a;
+            color: white;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 0 #151522, 0 8px 15px rgba(0,0,0,0.4);
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .ctrl-btn:active, .ctrl-btn.active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #151522;
+            background: #e52521;
+            border-color: #ff8a80;
+        }
+
+        .ctrl-btn-jump {
+            width: 74px;
+            height: 74px;
+            background: linear-gradient(145deg, #e52521, #b71c1c);
+            border-color: #ffcdd2;
+            font-size: 12px;
+        }
+
+        /* Tombol Menyerah Bergaya Retro di Tengah Bar Kontrol */
+        .center-utility-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-surrender {
+            background: linear-gradient(180deg, #ef5350 0%, #b71c1c 100%);
+            border: 3px solid #ffcdd2;
+            border-radius: 10px;
+            color: #fff;
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(9px, 1.5vw, 11px);
+            padding: 10px 16px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #7f0000, 0 6px 14px rgba(0, 0, 0, 0.45);
+            transition: transform 0.1s, box-shadow 0.1s, filter 0.15s;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-surrender:hover:not(:disabled) {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .btn-surrender:active:not(:disabled) {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #7f0000, 0 3px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-surrender:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: grayscale(40%);
+        }
+
+        .instructions-text {
+            font-size: 10px;
+            color: #a0a0c0;
+            text-align: center;
+            margin-top: 2px;
+            line-height: 1.6;
+        }
+
+        /* Bingkai Foto di Bagian Paling Bawah Tengah */
+        #bottom-photo-container {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 95vw;
+            max-width: 900px;
+        }
+
+        .photo-frame {
+            position: relative;
+            width: clamp(160px, 28vw, 240px);
+            aspect-ratio: 1 / 1;
+            border: 4px solid #fbd000;
+            border-radius: 14px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6), 0 0 0 3px #e52521;
+            overflow: hidden;
+            background: #252538;
+        }
+
+        .photo-frame img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+
+        /* Gaya Modal Kuis ASJ */
+        .quiz-box {
+            background: #1e1e2f;
+            border: 4px solid #fbd000;
+            border-radius: 14px;
+            padding: 18px;
+            max-width: 92%;
+            width: 540px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .quiz-badge {
+            font-family: 'Press Start 2P', monospace;
+            font-size: clamp(10px, 1.8vw, 13px);
+            color: #fbd000;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        .quiz-question {
+            font-size: clamp(13px, 2.2vw, 16px);
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 14px;
+            line-height: 1.5;
+        }
+
+        .quiz-options {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        @media (min-width: 640px) {
+            .quiz-options {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .quiz-opt-btn {
+            background: #2b2b44;
+            border: 2px solid #5c5c8a;
+            border-radius: 10px;
+            color: #fff;
+            padding: 10px 12px;
+            font-size: clamp(12px, 1.8vw, 14px);
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .quiz-opt-btn:hover:not(:disabled) {
+            background: #3d3d60;
+            border-color: #fbd000;
+            transform: translateY(-2px);
+        }
+
+        .quiz-opt-btn.correct {
+            background: #2e7d32 !important;
+            border-color: #81c784 !important;
+        }
+
+        .quiz-opt-btn.wrong {
+            background: #c62828 !important;
+            border-color: #ef9a9a !important;
+        }
+
+        /* Gaya Modal Kunci Akses Pemilik Foto */
+        .owner-lock-box {
+            background: #1e1e2f;
+            border: 4px solid #e52521;
+            border-radius: 14px;
+            padding: 18px;
+            max-width: 92%;
+            width: 380px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.85);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .owner-pin-input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 2px solid #5c5c8a;
+            background: #2b2b44;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            outline: none;
+        }
+
+        .owner-pin-input:focus {
+            border-color: #fbd000;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Kontainer Game Utama -->
+    <div id="game-wrapper">
+        <!-- Heads-Up Display -->
+        <div id="hud">
+            <div class="hud-item">
+                <span style="color:#ff8a80;">SYARIF</span>
+                <span id="hud-score">000000</span>
+            </div>
+            <div class="hud-item">
+                <span style="color:#fbd000;">KOIN</span>
+                <span id="hud-coins">x00</span>
+            </div>
+            <div class="hud-item">
+                <span style="color:#81c784;">DUNIA</span>
+                <span id="hud-world">1-1</span>
+            </div>
+            <div class="hud-item">
+                <span style="color:#64b5f6;">NYAWA</span>
+                <span id="hud-lives">x3</span>
+            </div>
+        </div>
+
+        <!-- Layar Mulai -->
+        <div id="start-screen" class="overlay">
+            <h1 class="retro-title">SUPER SYARIF<br>BROS</h1>
+            <p class="text-xs sm:text-sm text-gray-200 mb-4 leading-relaxed max-w-md">
+                Kumpulkan koin, sundul blok tanda tanya, injak musuh jamur, dan capai bendera finish!
+            </p>
+            <button id="btn-start" class="btn-retro">MULAI MAIN</button>
+        </div>
+
+        <!-- Layar Game Over / Menang -->
+        <div id="end-screen" class="overlay hidden">
+            <h1 id="end-title" class="retro-title">GAME OVER</h1>
+            <p id="end-subtitle" class="text-xs sm:text-sm text-yellow-300 mb-4">SKOR AKHIR: 0</p>
+            <button id="btn-restart" class="btn-retro">MAIN LAGI</button>
+        </div>
+
+        <!-- Layar Kuis ASJ Saat Pemain Kalah/Mati -->
+        <div id="quiz-screen" class="overlay hidden">
+            <div class="quiz-box">
+                <div class="quiz-badge">KUIS PENYELAMAT - MAPEL ASJ</div>
+                <p class="text-xs text-yellow-300 mb-3">Jawab benar untuk hidup kembali tanpa kehilangan nyawa!</p>
+                <div id="quiz-question" class="quiz-question">Memuat pertanyaan...</div>
+                <div id="quiz-options" class="quiz-options"></div>
+                <div id="quiz-feedback" class="mt-3 text-sm font-bold min-h-[20px]"></div>
+            </div>
+        </div>
+
+        <!-- Layar Kunci PIN Pemilik Untuk Ganti Foto -->
+        <div id="owner-lock-screen" class="overlay hidden">
+            <div class="owner-lock-box">
+                <div class="quiz-badge" style="color: #ff8a80;">AKSES KHUSUS PEMILIK</div>
+                <p class="text-xs text-gray-200 mb-3 leading-relaxed">
+                    Fitur ganti foto dikunci agar tidak sembarang orang bisa mengubahnya. Masukkan PIN pemilik:
+                </p>
+                <input type="password" id="owner-pin-input" class="owner-pin-input" placeholder="Masukkan PIN pemilik..." autocomplete="off">
+                <div id="owner-lock-error" class="mt-2 text-xs font-bold text-red-400 min-h-[18px]"></div>
+                <div class="flex gap-2 justify-end mt-3">
+                    <button type="button" id="btn-cancel-pin" class="px-3 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-xs font-bold text-white cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="button" id="btn-verify-pin" class="px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-400 text-xs font-bold text-black cursor-pointer">
+                        Buka Akses
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kanvas Render Game -->
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <!-- Kontrol Eksternal (Mobile & Desktop) -->
+    <div id="controls-bar">
+        <div class="dpad-group">
+            <button id="btn-left" class="ctrl-btn" aria-label="Kiri">◀</button>
+            <button id="btn-right" class="ctrl-btn" aria-label="Kanan">▶</button>
+        </div>
+        <div class="center-utility-group">
+            <button type="button" id="btn-surrender" class="btn-surrender" aria-label="Menyerah" disabled>🏳️ MENYERAH</button>
+            <div class="instructions-text hidden sm:block">
+                KEYBOARD: [A / D] atau [◀ / ▶] untuk Jalan • [SPASI / W / ▲] untuk Lompat
+            </div>
+        </div>
+        <div class="action-group">
+            <button id="btn-jump" class="ctrl-btn ctrl-btn-jump" aria-label="Lompat">LOMPAT</button>
+        </div>
+    </div>
+
+    <!-- Foto di Bagian Paling Bawah Tengah -->
+    <div id="bottom-photo-container">
+        <div class="photo-frame">
+            <img id="bottom-photo"
+                 src="WhatsApp Image 2026-11-23 at 17.50.09_2.jpeg"
+                 alt="Foto Bawah"
+                 onerror="this.onerror=null; this.src='https://placehold.co/400x400/252538/fbd000?text=Foto+Syarif';">
+        </div>
+        <button type="button" id="btn-photo-owner" class="mt-2 text-[9px] text-yellow-300 hover:text-white cursor-pointer underline bg-transparent border-0" style="font-family: 'Inter', sans-serif;">
+            🔒 Ganti / Muat File Foto Lokal (Khusus Pemilik)
+        </button>
+        <input type="file" id="photo-picker" accept="image/*" class="hidden">
+    </div>
+
+    <script>
+        /**
+         * SISTEM AUDIO RETRO MENGGUNAKAN TONE.JS
+         * Menghasilkan efek suara klasik 8-bit tanpa memerlukan file audio eksternal
+         */
+        class RetroAudio {
+            constructor() {
+                this.initialized = false;
+                this.synth = null;
+            }
+
+            async init() {
+                if (this.initialized) return;
+                await Tone.start();
+                this.synth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "square" },
+                    envelope: { attack: 0.01, decay: 0.1, sustain: 0.05, release: 0.1 }
+                }).toDestination();
+                this.synth.volume.value = -12;
+                this.initialized = true;
+            }
+
+            playJump() {
+                if (!this.initialized) return;
+                const now = Tone.now();
+                this.synth.triggerAttackRelease("C4", "32n", now);
+                this.synth.triggerAttackRelease("G4", "16n", now + 0.05);
+            }
+
+            playCoin() {
+                if (!this.initialized) return;
+                const now = Tone.now();
+                this.synth.triggerAttackRelease("B5", "32n", now);
+                this.synth.triggerAttackRelease("E6", "8n", now + 0.07);
+            }
+
+            playBump() {
+                if (!this.initialized) return;
+                this.synth.triggerAttackRelease("G2", "16n");
+            }
+
+            playStomp() {
+                if (!this.initialized) return;
+                const now = Tone.now();
+                this.synth.triggerAttackRelease("E4", "32n", now);
+                this.synth.triggerAttackRelease("C3", "16n", now + 0.05);
+            }
+
+            playPowerup() {
+                if (!this.initialized) return;
+                const notes = ["C4", "E4", "G4", "C5", "E5", "G5"];
+                const now = Tone.now();
+                notes.forEach((n, i) => {
+                    this.synth.triggerAttackRelease(n, "32n", now + i * 0.06);
+                });
+            }
+
+            playDie() {
+                if (!this.initialized) return;
+                const notes = ["B4", "F5", "F5", "F5", "E5", "D5", "C5"];
+                const now = Tone.now();
+                notes.forEach((n, i) => {
+                    this.synth.triggerAttackRelease(n, "16n", now + i * 0.11);
+                });
+            }
+
+            playWin() {
+                if (!this.initialized) return;
+                const notes = ["G3", "C4", "E4", "G4", "C5", "E5", "G5", "E5"];
+                const now = Tone.now();
+                notes.forEach((n, i) => {
+                    this.synth.triggerAttackRelease(n, "16n", now + i * 0.1);
+                });
+            }
+        }
+
+        const audio = new RetroAudio();
+
+        /**
+         * KONFIGURASI & VARIABEL GAME
+         */
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Resolusi internal tetap untuk konsistensi fisika dan tampilan pixel art
+        const GAME_WIDTH = 800;
+        const GAME_HEIGHT = 450;
+        const TILE_SIZE = 32;
+
+        function resizeCanvas() {
+            canvas.width = GAME_WIDTH;
+            canvas.height = GAME_HEIGHT;
+            ctx.imageSmoothingEnabled = false;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Status Global Game
+        let gameState = 'START'; // START, PLAYING, QUIZ, GAMEOVER, WIN
+        let score = 0;
+        let coins = 0;
+        let lives = 3;
+        let cameraX = 0;
+        let frameCount = 0;
+        let lastSafePos = { x: 60, y: 200 }; // Menyimpan titik aman terakhir untuk respawn kuis
+
+        // Daftar Pertanyaan Mudah Mata Pelajaran ASJ (Administrasi Sistem Jaringan)
+        const asjQuestions = [
+            {
+                q: "Apa kepanjangan dari ASJ dalam jurusan TKJ?",
+                options: ["Administrasi Sistem Jaringan", "Aplikasi Sistem Jaringan", "Analisis Server Jaringan", "Alat Sistem Jaringan"],
+                answer: 0
+            },
+            {
+                q: "Perintah dasar di Linux untuk melihat daftar file dalam folder adalah...",
+                options: ["cd", "ls", "mkdir", "rm"],
+                answer: 1
+            },
+            {
+                q: "Perintah di terminal/CMD untuk mengecek koneksi jaringan ke IP tujuan adalah...",
+                options: ["ping", "copy", "echo", "exit"],
+                answer: 0
+            },
+            {
+                q: "Kabel jaringan yang paling umum digunakan untuk menghubungkan komputer ke switch adalah...",
+                options: ["Kabel Listrik", "Kabel UTP", "Kabel HDMI", "Kabel VGA"],
+                answer: 1
+            },
+            {
+                q: "Port default yang digunakan oleh layanan Web Server (HTTP) adalah...",
+                options: ["21", "22", "80", "443"],
+                answer: 2
+            },
+            {
+                q: "Perintah Linux untuk berpindah direktori atau folder adalah...",
+                options: ["ls", "cd", "pwd", "cat"],
+                answer: 1
+            },
+            {
+                q: "Layanan jaringan yang berfungsi memberikan alamat IP secara otomatis kepada client adalah...",
+                options: ["DNS", "DHCP", "FTP", "SSH"],
+                answer: 1
+            },
+            {
+                q: "Sistem operasi open-source yang paling sering digunakan untuk membangun server adalah...",
+                options: ["Windows 7", "Linux", "Android", "MS-DOS"],
+                answer: 1
+            },
+            {
+                q: "Perintah di terminal Linux untuk membuat folder atau direktori baru adalah...",
+                options: ["rmdir", "mkdir", "touch", "nano"],
+                answer: 1
+            },
+            {
+                q: "Layanan yang berfungsi menerjemahkan nama domain (seperti google.com) menjadi alamat IP adalah...",
+                options: ["DHCP", "FTP", "DNS", "Telnet"],
+                answer: 2
+            },
+            {
+                q: "Konektor yang dipasang pada ujung kabel UTP untuk jaringan LAN adalah...",
+                options: ["RJ-11", "RJ-45", "BNC", "USB"],
+                answer: 1
+            },
+            {
+                q: "Perintah di Linux untuk melihat alamat IP pada interface jaringan adalah...",
+                options: ["ip a", "ls -l", "cd /", "mkdir ip"],
+                answer: 0
+            },
+            {
+                q: "Perangkat lunak populer di Linux yang berfungsi sebagai Web Server adalah...",
+                options: ["Samba", "Apache2", "Bind9", "Postfix"],
+                answer: 1
+            },
+            {
+                q: "Perintah Linux untuk masuk sebagai pengguna tertinggi (Super User / Administrator) adalah...",
+                options: ["sudo su", "exit", "clear", "logout"],
+                answer: 0
+            },
+            {
+                q: "Aplikasi di Linux yang sering digunakan untuk berbagi file (File Sharing) dengan Windows adalah...",
+                options: ["Samba", "Nginx", "Squid", "Cacti"],
+                answer: 0
+            },
+            {
+                q: "Port standar yang digunakan untuk akses remote server secara aman melalui SSH adalah...",
+                options: ["21", "22", "25", "80"],
+                answer: 1
+            },
+            {
+                q: "Perintah di terminal Linux untuk membersihkan layar terminal adalah...",
+                options: ["clear", "clean", "cls", "resetall"],
+                answer: 0
+            },
+            {
+                q: "Perintah di Debian/Ubuntu untuk memperbarui daftar paket aplikasi dari repository adalah...",
+                options: ["apt update", "apt remove", "apt search", "apt clean"],
+                answer: 0
+            },
+            {
+                q: "Layanan FTP (File Transfer Protocol) secara default berjalan pada port...",
+                options: ["21", "53", "80", "443"],
+                answer: 0
+            },
+            {
+                q: "Editor teks berbasis terminal di Linux yang sangat mudah digunakan untuk pemula adalah...",
+                options: ["nano", "gimp", "vlc", "libreoffice"],
+                answer: 0
+            }
+        ];
+
+        // Input Keyboard & Sentuh
+        const keys = {
+            left: false,
+            right: false,
+            up: false
+        };
+
+        // Entitas dalam Level
+        let blocks = [];
+        let enemies = [];
+        let items = [];
+        let particles = [];
+        let clouds = [];
+        let bushes = [];
+        let flagPole = null;
+
+        function addFloatingText(x, y, text) {
+            particles.push({
+                type: 'text',
+                x: x,
+                y: y,
+                vy: -1,
+                text: text,
+                life: 45
+            });
+        }
+
+        function spawnBrickParticles(x, y) {
+            const dirs = [
+                { vx: -3, vy: -6 },
+                { vx: 3, vy: -6 },
+                { vx: -2, vy: -3 },
+                { vx: 2, vy: -3 }
+            ];
+            dirs.forEach(d => {
+                particles.push({
+                    type: 'brick',
+                    x: x + 12,
+                    y: y + 12,
+                    vx: d.vx,
+                    vy: d.vy,
+                    life: 40
+                });
+            });
+        }
+
+        /**
+         * KELAS PEMAIN (SYARIF)
+         */
+        class Player {
+            constructor() {
+                this.reset(60, 200);
+            }
+
+            reset(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 24;
+                this.height = 30;
+                this.vx = 0;
+                this.vy = 0;
+                this.speed = 4.2;
+                this.jumpForce = -11.5;
+                this.gravity = 0.55;
+                this.grounded = false;
+                this.facingRight = true;
+                this.isBig = false;
+                this.invincibleTimer = 0;
+            }
+
+            grow() {
+                if (!this.isBig) {
+                    this.isBig = true;
+                    this.y -= 14;
+                    this.height = 44;
+                }
+            }
+
+            shrink() {
+                this.isBig = false;
+                this.height = 30;
+                this.invincibleTimer = 90;
+                audio.playBump();
+            }
+
+            update() {
+                if (this.invincibleTimer > 0) this.invincibleTimer--;
+
+                // Gerakan Horizontal
+                if (keys.left) {
+                    this.vx = -this.speed;
+                    this.facingRight = false;
+                } else if (keys.right) {
+                    this.vx = this.speed;
+                    this.facingRight = true;
+                } else {
+                    this.vx *= 0.8;
+                    if (Math.abs(this.vx) < 0.1) this.vx = 0;
+                }
+
+                // Lompat
+                if (keys.up && this.grounded) {
+                    this.vy = this.jumpForce;
+                    this.grounded = false;
+                    audio.playJump();
+                }
+
+                // Terapkan Kecepatan Horizontal & Cek Tabrakan
+                this.x += this.vx;
+                if (this.x < cameraX) this.x = cameraX;
+                this.checkHorizontalCollisions();
+
+                // Terapkan Gravitasi & Cek Tabrakan Vertikal
+                this.vy += this.gravity;
+                if (this.vy > 12) this.vy = 12;
+                this.y += this.vy;
+                this.grounded = false;
+                this.checkVerticalCollisions();
+
+                // Simpan titik aman terakhir jika berdiri di tanah solid
+                if (this.grounded && this.y < GAME_HEIGHT - TILE_SIZE * 1.5) {
+                    lastSafePos = { x: this.x, y: this.y };
+                }
+
+                // Cek Jatuh ke Jurang
+                if (this.y > GAME_HEIGHT + 40) {
+                    audio.playDie();
+                    showASJQuiz();
+                    return;
+                }
+
+                // Cek Mencapai Tiang Bendera
+                if (flagPole && this.x + this.width >= flagPole.x && this.x <= flagPole.x + 16) {
+                    score += 2000;
+                    updateHUD();
+                    audio.playWin();
+                    endGame(true);
+                }
+            }
+
+            checkHorizontalCollisions() {
+                for (let b of blocks) {
+                    if (this.intersects(b)) {
+                        if (this.vx > 0) {
+                            this.x = b.x - this.width;
+                        } else if (this.vx < 0) {
+                            this.x = b.x + b.width;
+                        }
+                        this.vx = 0;
+                    }
+                }
+            }
+
+            checkVerticalCollisions() {
+                for (let i = blocks.length - 1; i >= 0; i--) {
+                    let b = blocks[i];
+                    if (this.intersects(b)) {
+                        if (this.vy > 0) {
+                            // Mendarat di atas blok
+                            this.y = b.y - this.height;
+                            this.vy = 0;
+                            this.grounded = true;
+                        } else if (this.vy < 0) {
+                            // Menyundul blok dari bawah
+                            this.y = b.y + b.height;
+                            this.vy = 0;
+                            this.hitBlock(b, i);
+                        }
+                    }
+                }
+            }
+
+            hitBlock(b, index) {
+                b.bumpOffset = -8;
+                if (b.type === '?') {
+                    b.type = 'USED';
+                    coins++;
+                    score += 100;
+                    updateHUD();
+                    audio.playCoin();
+                    particles.push({
+                        type: 'coin',
+                        x: b.x + 8,
+                        y: b.y - 10,
+                        vy: -6,
+                        life: 25
+                    });
+                    addFloatingText(b.x, b.y - 16, "+100");
+                } else if (b.type === 'M') {
+                    b.type = 'USED';
+                    audio.playPowerup();
+                    items.push(new Item(b.x, b.y - TILE_SIZE));
+                } else if (b.type === 'B') {
+                    if (this.isBig) {
+                        spawnBrickParticles(b.x, b.y);
+                        blocks.splice(index, 1);
+                        score += 50;
+                        updateHUD();
+                        audio.playStomp();
+                    } else {
+                        audio.playBump();
+                    }
+                } else {
+                    audio.playBump();
+                }
+            }
+
+            intersects(rect) {
+                return (
+                    this.x < rect.x + rect.width &&
+                    this.x + this.width > rect.x &&
+                    this.y < rect.y + rect.height &&
+                    this.y + this.height > rect.y
+                );
+            }
+
+            draw() {
+                if (this.invincibleTimer > 0 && Math.floor(frameCount / 4) % 2 === 0) return;
+
+                const dx = Math.floor(this.x - cameraX);
+                const dy = Math.floor(this.y);
+
+                // Baju Biru (Overall)
+                ctx.fillStyle = '#1565c0';
+                ctx.fillRect(dx + 4, dy + 14, this.width - 8, this.height - 18);
+
+                // Kaos & Topi Merah
+                ctx.fillStyle = '#e52521';
+                ctx.fillRect(dx + 2, dy + 10, this.width - 4, 8);
+                ctx.fillRect(dx + 2, dy, this.width - 4, 6);
+                // Visor Topi
+                if (this.facingRight) {
+                    ctx.fillRect(dx + 12, dy + 3, 12, 3);
+                } else {
+                    ctx.fillRect(dx, dy + 3, 12, 3);
+                }
+
+                // Wajah & Tangan
+                ctx.fillStyle = '#ffcc80';
+                ctx.fillRect(dx + 4, dy + 6, this.width - 8, 7);
+
+                // Mata
+                ctx.fillStyle = '#000';
+                const eyeX = this.facingRight ? dx + 15 : dx + 6;
+                ctx.fillRect(eyeX, dy + 7, 3, 3);
+
+                // Sepatu Cokelat
+                ctx.fillStyle = '#5d4037';
+                ctx.fillRect(dx + 2, dy + this.height - 4, 8, 4);
+                ctx.fillRect(dx + this.width - 10, dy + this.height - 4, 8, 4);
+            }
+        }
+
+        /**
+         * KELAS MUSUH JAMUR (GOOMBA)
+         */
+        class Enemy {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 28;
+                this.height = 28;
+                this.vx = -1.3;
+                this.vy = 0;
+                this.gravity = 0.5;
+                this.dead = false;
+                this.deadTimer = 0;
+            }
+
+            update() {
+                if (this.dead) {
+                    this.deadTimer--;
+                    return;
+                }
+
+                // Aktifkan musuh saat mendekati layar
+                if (this.x - cameraX > GAME_WIDTH + 100) return;
+
+                this.x += this.vx;
+                for (let b of blocks) {
+                    if (this.intersects(b)) {
+                        if (this.vx > 0) this.x = b.x - this.width;
+                        else this.x = b.x + b.width;
+                        this.vx *= -1;
+                    }
+                }
+
+                this.vy += this.gravity;
+                this.y += this.vy;
+                for (let b of blocks) {
+                    if (this.intersects(b)) {
+                        if (this.vy > 0) {
+                            this.y = b.y - this.height;
+                            this.vy = 0;
+                        }
+                    }
+                }
+
+                // Cek Tabrakan dengan Pemain
+                if (this.intersects(player)) {
+                    // Pemain menginjak dari atas
+                    if (player.vy > 0 && player.y + player.height - player.vy <= this.y + 12) {
+                        this.dead = true;
+                        this.deadTimer = 20;
+                        player.vy = -8;
+                        score += 200;
+                        updateHUD();
+                        audio.playStomp();
+                        addFloatingText(this.x, this.y - 10, "+200");
+                    } else if (player.invincibleTimer === 0) {
+                        if (player.isBig) {
+                            player.shrink();
+                        } else {
+                            audio.playDie();
+                            showASJQuiz();
+                        }
+                    }
+                }
+            }
+
+            intersects(rect) {
+                return (
+                    this.x < rect.x + rect.width &&
+                    this.x + this.width > rect.x &&
+                    this.y < rect.y + rect.height &&
+                    this.y + this.height > rect.y
+                );
+            }
+
+            draw() {
+                if (this.dead && this.deadTimer <= 0) return;
+                const dx = Math.floor(this.x - cameraX);
+                const dy = Math.floor(this.y);
+                if (dx < -40 || dx > GAME_WIDTH + 40) return;
+
+                if (this.dead) {
+                    // Musuh gepeng saat diinjak
+                    ctx.fillStyle = '#8d4925';
+                    ctx.fillRect(dx, dy + 18, this.width, 10);
+                    return;
+                }
+
+                // Kepala Jamur Cokelat
+                ctx.fillStyle = '#8d4925';
+                ctx.beginPath();
+                ctx.arc(dx + 14, dy + 12, 13, Math.PI, 0);
+                ctx.fill();
+                ctx.fillRect(dx + 2, dy + 12, 24, 6);
+
+                // Badan & Kaki
+                ctx.fillStyle = '#f5cba7';
+                ctx.fillRect(dx + 7, dy + 18, 14, 7);
+
+                const step = Math.floor(frameCount / 10) % 2 === 0 ? 0 : 3;
+                ctx.fillStyle = '#212121';
+                ctx.fillRect(dx + 4 + step, dy + 24, 8, 4);
+                ctx.fillRect(dx + 16 - step, dy + 24, 8, 4);
+
+                // Mata Marah
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(dx + 7, dy + 10, 4, 5);
+                ctx.fillRect(dx + 17, dy + 10, 4, 5);
+                ctx.fillStyle = '#000';
+                ctx.fillRect(dx + 8, dy + 11, 2, 3);
+                ctx.fillRect(dx + 18, dy + 11, 2, 3);
+            }
+        }
+
+        /**
+         * KELAS ITEM JAMUR MERAH (POWER-UP)
+         */
+        class Item {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 26;
+                this.height = 26;
+                this.vx = 1.8;
+                this.vy = 0;
+                this.gravity = 0.5;
+                this.collected = false;
+            }
+
+            update() {
+                if (this.collected) return;
+
+                this.x += this.vx;
+                for (let b of blocks) {
+                    if (this.intersects(b)) {
+                        if (this.vx > 0) this.x = b.x - this.width;
+                        else this.x = b.x + b.width;
+                        this.vx *= -1;
+                    }
+                }
+
+                this.vy += this.gravity;
+                this.y += this.vy;
+                for (let b of blocks) {
+                    if (this.intersects(b)) {
+                        if (this.vy > 0) {
+                            this.y = b.y - this.height;
+                            this.vy = 0;
+                        }
+                    }
+                }
+
+                if (this.intersects(player)) {
+                    this.collected = true;
+                    player.grow();
+                    score += 1000;
+                    updateHUD();
+                    audio.playPowerup();
+                    addFloatingText(this.x, this.y - 10, "+1000");
+                }
+            }
+
+            intersects(rect) {
+                return (
+                    this.x < rect.x + rect.width &&
+                    this.x + this.width > rect.x &&
+                    this.y < rect.y + rect.height &&
+                    this.y + this.height > rect.y
+                );
+            }
+
+            draw() {
+                if (this.collected) return;
+                const dx = Math.floor(this.x - cameraX);
+                const dy = Math.floor(this.y);
+
+                // Topi Jamur Merah
+                ctx.fillStyle = '#e52521';
+                ctx.beginPath();
+                ctx.arc(dx + 13, dy + 12, 13, Math.PI, 0);
+                ctx.fill();
+                ctx.fillRect(dx, dy + 12, 26, 4);
+
+                // Bintik Putih
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(dx + 7, dy + 8, 3, 0, Math.PI * 2);
+                ctx.arc(dx + 19, dy + 8, 3, 0, Math.PI * 2);
+                ctx.arc(dx + 13, dy + 4, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Batang Jamur
+                ctx.fillStyle = '#ffe0b2';
+                ctx.fillRect(dx + 6, dy + 16, 14, 10);
+            }
+        }
+
+        const player = new Player();
+
+        function initLevel(fullReset = true) {
+            if (fullReset) {
+                score = 0;
+                coins = 0;
+                lives = 3;
+            }
+            updateHUD();
+            cameraX = 0;
+            lastSafePos = { x: 60, y: 200 };
+            player.reset(60, 200);
+            blocks = [];
+            enemies = [];
+            items = [];
+            particles = [];
+            clouds = [];
+            bushes = [];
+
+            // Dekorasi Awan & Semak
+            for (let i = 0; i < 18; i++) {
+                clouds.push({ x: i * 240 + 50, y: 40 + (i % 3) * 35, w: 60 + (i % 2) * 30 });
+                bushes.push({ x: i * 260 + 90, w: 64 + (i % 2) * 32 });
+            }
+
+            // Desain Peta Level 1-1
+            const map = [
+                "                                                                                                                        ",
+                "                                                                                                                        ",
+                "                                                                                                                        ",
+                "                                                                                                                        ",
+                "                                                                     BBBBBBBB     ???B                                  ",
+                "                                                                                                                        ",
+                "                                                                                                                 F      ",
+                "                                                                                                                 |      ",
+                "                ?       B?M?B                     BB?BB                                        BB                |      ",
+                "                                                                                              PP                 |      ",
+                "                                         PP                 PP                                PP                 |      ",
+                "                             PP          PP                 PP                 PP             PP                 |      ",
+                "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG   GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG",
+                "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG   GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG"
+            ];
+
+            for (let row = 0; row < map.length; row++) {
+                for (let col = 0; col < map[row].length; col++) {
+                    const ch = map[row][col];
+                    const x = col * TILE_SIZE;
+                    const y = row * TILE_SIZE;
+
+                    if (ch === 'G' || ch === 'B' || ch === '?' || ch === 'M' || ch === 'P') {
+                        blocks.push({
+                            x, y,
+                            width: TILE_SIZE,
+                            height: TILE_SIZE,
+                            type: ch,
+                            bumpOffset: 0
+                        });
+                    } else if (ch === 'F') {
+                        flagPole = { x: x + 12, y: y, height: TILE_SIZE * 6 };
+                    }
+                }
+            }
+
+            // Penempatan Musuh Jamur
+            const enemyCols = [16, 26, 38, 46, 58, 74, 84, 96];
+            enemyCols.forEach(c => {
+                enemies.push(new Enemy(c * TILE_SIZE, 11 * TILE_SIZE));
+            });
+        }
+
+        function updateHUD() {
+            document.getElementById('hud-score').innerText = String(score).padStart(6, '0');
+            document.getElementById('hud-coins').innerText = 'x' + String(coins).padStart(2, '0');
+            document.getElementById('hud-world').innerText = '1-1';
+            document.getElementById('hud-lives').innerText = 'x' + lives;
+            syncSurrenderButton();
+        }
+
+        function syncSurrenderButton() {
+            const btnSurrender = document.getElementById('btn-surrender');
+            if (!btnSurrender) return;
+            btnSurrender.disabled = (gameState !== 'PLAYING');
+        }
+
+        function surrenderGame() {
+            if (gameState !== 'PLAYING') return;
+            keys.left = false;
+            keys.right = false;
+            keys.up = false;
+            lives = 0;
+            updateHUD();
+            audio.playDie();
+            endGame(false);
+        }
+
+        /**
+         * SISTEM KUIS MATA PELAJARAN ASJ SAAT PEMAIN KALAH
+         */
+        function showASJQuiz() {
+            gameState = 'QUIZ';
+            keys.left = false;
+            keys.right = false;
+            keys.up = false;
+
+            const quizScreen = document.getElementById('quiz-screen');
+            const qEl = document.getElementById('quiz-question');
+            const optEl = document.getElementById('quiz-options');
+            const fbEl = document.getElementById('quiz-feedback');
+
+            const item = asjQuestions[Math.floor(Math.random() * asjQuestions.length)];
+            qEl.innerText = item.q;
+            fbEl.innerText = '';
+            optEl.innerHTML = '';
+
+            item.options.forEach((optText, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-opt-btn';
+                btn.innerText = `${String.fromCharCode(65 + idx)}. ${optText}`;
+                btn.onclick = () => {
+                    const allBtns = optEl.querySelectorAll('button');
+                    allBtns.forEach(b => b.disabled = true);
+
+                    if (idx === item.answer) {
+                        btn.classList.add('correct');
+                        fbEl.style.color = '#81c784';
+                        fbEl.innerText = 'BENAR! Syarif hidup kembali!';
+                        audio.playPowerup();
+
+                        setTimeout(() => {
+                            quizScreen.classList.add('hidden');
+                            player.reset(lastSafePos.x, lastSafePos.y - 20);
+                            player.invincibleTimer = 120;
+                            gameState = 'PLAYING';
+                        }, 1100);
+                    } else {
+                        btn.classList.add('wrong');
+                        allBtns[item.answer].classList.add('correct');
+                        fbEl.style.color = '#ef9a9a';
+                        fbEl.innerText = 'SALAH! Nyawa berkurang 1...';
+                        audio.playBump();
+
+                        setTimeout(() => {
+                            quizScreen.classList.add('hidden');
+                            lives--;
+                            updateHUD();
+                            if (lives <= 0) {
+                                endGame(false);
+                            } else {
+                                initLevel(false);
+                                gameState = 'PLAYING';
+                            }
+                        }, 1400);
+                    }
+                };
+                optEl.appendChild(btn);
+            });
+
+            quizScreen.classList.remove('hidden');
+        }
+
+        function endGame(win) {
+            gameState = win ? 'WIN' : 'GAMEOVER';
+            syncSurrenderButton();
+            const endScreen = document.getElementById('end-screen');
+            const endTitle = document.getElementById('end-title');
+            const endSubtitle = document.getElementById('end-subtitle');
+
+            endTitle.innerText = win ? 'KAMU MENANG!' : 'GAME OVER';
+            endTitle.style.color = win ? '#81c784' : '#ff8a80';
+            endSubtitle.innerText = `SKOR AKHIR: ${score} | KOIN: ${coins}`;
+            endScreen.classList.remove('hidden');
+        }
+
+        /**
+         * RENDERING DUNIA & LOOP UTAMA GAME
+         */
+        function drawBackground() {
+            // Awan
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            for (let c of clouds) {
+                const cx = (c.x - cameraX * 0.4) % 3800;
+                const drawX = cx < -100 ? cx + 3800 : cx;
+                ctx.beginPath();
+                ctx.arc(drawX, c.y, 18, 0, Math.PI * 2);
+                ctx.arc(drawX + 20, c.y - 6, 22, 0, Math.PI * 2);
+                ctx.arc(drawX + 42, c.y, 18, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Semak Hijau
+            ctx.fillStyle = '#43b047';
+            const groundY = 12 * TILE_SIZE;
+            for (let b of bushes) {
+                const bx = (b.x - cameraX * 0.8) % 4000;
+                const drawX = bx < -100 ? bx + 4000 : bx;
+                ctx.beginPath();
+                ctx.arc(drawX, groundY, 16, Math.PI, 0);
+                ctx.arc(drawX + 22, groundY - 6, 22, Math.PI, 0);
+                ctx.arc(drawX + 44, groundY, 16, Math.PI, 0);
+                ctx.fill();
+            }
+        }
+
+        function drawBlocks() {
+            for (let b of blocks) {
+                if (b.bumpOffset < 0) b.bumpOffset += 1;
+                const dx = Math.floor(b.x - cameraX);
+                const dy = Math.floor(b.y + b.bumpOffset);
+
+                if (dx < -TILE_SIZE || dx > GAME_WIDTH + TILE_SIZE) continue;
+
+                if (b.type === 'G') {
+                    // Tanah & Rumput
+                    ctx.fillStyle = '#c84c0c';
+                    ctx.fillRect(dx, dy, TILE_SIZE, TILE_SIZE);
+                    ctx.fillStyle = '#43b047';
+                    ctx.fillRect(dx, dy, TILE_SIZE, 6);
+                    ctx.strokeStyle = '#5d2906';
+                    ctx.strokeRect(dx + 0.5, dy + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+                } else if (b.type === 'B') {
+                    // Bata Cokelat
+                    ctx.fillStyle = '#b7410e';
+                    ctx.fillRect(dx, dy, TILE_SIZE, TILE_SIZE);
+                    ctx.strokeStyle = '#000';
+                    ctx.strokeRect(dx + 0.5, dy + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+                    ctx.beginPath();
+                    ctx.moveTo(dx, dy + 16);
+                    ctx.lineTo(dx + TILE_SIZE, dy + 16);
+                    ctx.moveTo(dx + 16, dy);
+                    ctx.lineTo(dx + 16, dy + 16);
+                    ctx.stroke();
+                } else if (b.type === '?' || b.type === 'M') {
+                    // Blok Tanda Tanya
+                    ctx.fillStyle = '#fbd000';
+                    ctx.fillRect(dx, dy, TILE_SIZE, TILE_SIZE);
+                    ctx.strokeStyle = '#8d6e00';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(dx + 1, dy + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+                    ctx.lineWidth = 1;
+                    ctx.fillStyle = '#8d4925';
+                    ctx.font = 'bold 18px monospace';
+                    ctx.fillText('?', dx + 10, dy + 23);
+                } else if (b.type === 'USED') {
+                    // Blok Kosong Setelah Disundul
+                    ctx.fillStyle = '#8d6e63';
+                    ctx.fillRect(dx, dy, TILE_SIZE, TILE_SIZE);
+                    ctx.strokeStyle = '#3e2723';
+                    ctx.strokeRect(dx + 0.5, dy + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+                } else if (b.type === 'P') {
+                    // Pipa Hijau
+                    ctx.fillStyle = '#2e7d32';
+                    ctx.fillRect(dx, dy, TILE_SIZE, TILE_SIZE);
+                    ctx.fillStyle = '#66bb6a';
+                    ctx.fillRect(dx + 4, dy, 6, TILE_SIZE);
+                    ctx.strokeStyle = '#1b5e20';
+                    ctx.strokeRect(dx + 0.5, dy + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
+                }
+            }
+        }
+
+        function drawFlagPole() {
+            if (!flagPole) return;
+            const dx = Math.floor(flagPole.x - cameraX);
+            if (dx < -50 || dx > GAME_WIDTH + 50) return;
+
+            // Tiang Putih
+            ctx.fillStyle = '#eeeeee';
+            ctx.fillRect(dx, flagPole.y, 6, flagPole.height);
+            // Bola Emas di Puncak
+            ctx.fillStyle = '#fbd000';
+            ctx.beginPath();
+            ctx.arc(dx + 3, flagPole.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            // Bendera Hijau
+            ctx.fillStyle = '#43b047';
+            ctx.beginPath();
+            ctx.moveTo(dx + 6, flagPole.y + 10);
+            ctx.lineTo(dx + 46, flagPole.y + 24);
+            ctx.lineTo(dx + 6, flagPole.y + 38);
+            ctx.fill();
+        }
+
+        function updateAndDrawParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life--;
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                if (p.type === 'text') {
+                    p.y += p.vy;
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '10px "Press Start 2P", monospace';
+                    ctx.fillText(p.text, Math.floor(p.x - cameraX), Math.floor(p.y));
+                } else if (p.type === 'coin') {
+                    p.y += p.vy;
+                    p.vy += 0.4;
+                    ctx.fillStyle = '#fbd000';
+                    ctx.beginPath();
+                    ctx.ellipse(Math.floor(p.x - cameraX + 6), Math.floor(p.y), 6, 9, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (p.type === 'brick') {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.4;
+                    ctx.fillStyle = '#b7410e';
+                    ctx.fillRect(Math.floor(p.x - cameraX), Math.floor(p.y), 8, 8);
+                }
+            }
+        }
+
+        function gameLoop() {
+            frameCount++;
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            drawBackground();
+            drawBlocks();
+            drawFlagPole();
+
+            if (gameState === 'PLAYING') {
+                player.update();
+
+                // Kamera mengikuti pemain ke kanan
+                const targetCam = player.x - GAME_WIDTH * 0.35;
+                if (targetCam > cameraX) {
+                    cameraX = targetCam;
+                }
+
+                items.forEach(item => item.update());
+                enemies.forEach(enemy => enemy.update());
+            }
+
+            items.forEach(item => item.draw());
+            enemies.forEach(enemy => enemy.draw());
+            player.draw();
+            updateAndDrawParticles();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        /**
+         * EVENT LISTENER KEYBOARD & TOMBOL LAYAR
+         */
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+                keys.up = true;
+                if (gameState === 'PLAYING') e.preventDefault();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.up = false;
+        });
+
+        function bindTouchButton(btnId, keyName) {
+            const btn = document.getElementById(btnId);
+            const press = (e) => {
+                e.preventDefault();
+                keys[keyName] = true;
+                btn.classList.add('active');
+            };
+            const release = (e) => {
+                e.preventDefault();
+                keys[keyName] = false;
+                btn.classList.remove('active');
+            };
+            btn.addEventListener('mousedown', press);
+            btn.addEventListener('mouseup', release);
+            btn.addEventListener('mouseleave', release);
+            btn.addEventListener('touchstart', press, { passive: false });
+            btn.addEventListener('touchend', release, { passive: false });
+        }
+
+        bindTouchButton('btn-left', 'left');
+        bindTouchButton('btn-right', 'right');
+        bindTouchButton('btn-jump', 'up');
+
+        document.getElementById('btn-start').addEventListener('click', async () => {
+            await audio.init();
+            document.getElementById('start-screen').classList.add('hidden');
+            initLevel(true);
+            gameState = 'PLAYING';
+            syncSurrenderButton();
+        });
+
+        document.getElementById('btn-restart').addEventListener('click', async () => {
+            await audio.init();
+            document.getElementById('end-screen').classList.add('hidden');
+            initLevel(true);
+            gameState = 'PLAYING';
+            syncSurrenderButton();
+        });
+
+        document.getElementById('btn-surrender').addEventListener('click', async () => {
+            await audio.init();
+            surrenderGame();
+        });
+
+        window.onload = function () {
+            initLevel(true);
+            syncSurrenderButton();
+            gameLoop();
+        };
+
+        /**
+         * PROTEKSI AKSES KHUSUS PEMILIK UNTUK GANTI / MUAT FILE FOTO LOKAL
+         * PIN pemilik telah diatur ke 3610 dan bersifat satu kali akses per penggantian foto.
+         */
+        const OWNER_PIN = '3610';
+        let ownerOneTimePass = false;
+        let previousGameStateBeforeLock = null;
+
+        const ownerLockScreen = document.getElementById('owner-lock-screen');
+        const ownerPinInput = document.getElementById('owner-pin-input');
+        const ownerLockError = document.getElementById('owner-lock-error');
+        const photoPicker = document.getElementById('photo-picker');
+
+        function lockOwnerAccessAgain() {
+            ownerOneTimePass = false;
+            document.getElementById('btn-photo-owner').innerText = '🔒 Ganti / Muat File Foto Lokal (Khusus Pemilik)';
+        }
+
+        function openOwnerLockModal() {
+            if (ownerOneTimePass) {
+                photoPicker.click();
+                return;
+            }
+            if (gameState === 'PLAYING') {
+                previousGameStateBeforeLock = 'PLAYING';
+                gameState = 'LOCKED';
+            } else {
+                previousGameStateBeforeLock = null;
+            }
+            ownerPinInput.value = '';
+            ownerLockError.innerText = '';
+            ownerLockScreen.classList.remove('hidden');
+            setTimeout(() => ownerPinInput.focus(), 50);
+        }
+
+        function closeOwnerLockModal() {
+            lockOwnerAccessAgain();
+            ownerLockScreen.classList.add('hidden');
+            ownerPinInput.value = '';
+            ownerLockError.innerText = '';
+            if (previousGameStateBeforeLock === 'PLAYING' && gameState === 'LOCKED') {
+                gameState = 'PLAYING';
+            }
+            previousGameStateBeforeLock = null;
+        }
+
+        function verifyOwnerPin() {
+            const enteredPin = ownerPinInput.value.trim();
+            if (!enteredPin) {
+                ownerLockError.innerText = 'Silakan masukkan PIN pemilik terlebih dahulu.';
+                return;
+            }
+            if (enteredPin === OWNER_PIN) {
+                ownerOneTimePass = true;
+                ownerLockScreen.classList.add('hidden');
+                ownerLockError.innerText = '';
+                document.getElementById('btn-photo-owner').innerText = '🔓 Pilih File Foto (1x Akses Aktif)';
+                if (previousGameStateBeforeLock === 'PLAYING' && gameState === 'LOCKED') {
+                    gameState = 'PLAYING';
+                }
+                previousGameStateBeforeLock = null;
+                photoPicker.click();
+            } else {
+                ownerLockError.innerText = 'PIN salah! Hanya pemilik yang bisa mengubah foto.';
+                ownerPinInput.select();
+            }
+        }
+
+        document.getElementById('btn-photo-owner').addEventListener('click', openOwnerLockModal);
+        document.getElementById('btn-cancel-pin').addEventListener('click', closeOwnerLockModal);
+        document.getElementById('btn-verify-pin').addEventListener('click', verifyOwnerPin);
+
+        // Jika jendela pemilih file ditutup tanpa memilih file, kunci kembali aksesnya
+        window.addEventListener('focus', function () {
+            if (ownerOneTimePass) {
+                setTimeout(() => {
+                    if (!photoPicker.files || photoPicker.files.length === 0) {
+                        lockOwnerAccessAgain();
+                    }
+                }, 250);
+            }
+        });
+
+        ownerPinInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                verifyOwnerPin();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeOwnerLockModal();
+            }
+        });
+
+        // Handler agar hanya pemilik yang telah lolos verifikasi PIN dapat memuat file foto baru, lalu langsung mengunci lagi
+        photoPicker.addEventListener('change', function (e) {
+            if (!ownerOneTimePass) {
+                e.target.value = '';
+                lockOwnerAccessAgain();
+                return;
+            }
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (evt) {
+                    document.getElementById('bottom-photo').src = evt.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+            e.target.value = '';
+            lockOwnerAccessAgain();
+        });
+    </script>
+</body>
+</html>
